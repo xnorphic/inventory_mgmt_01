@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -5,7 +6,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 from io import BytesIO
-from inventory_optimizer import InventoryOptimizer  # Import the logic module
+from inventory_optimizer import InventoryOptimizer
 
 st.set_page_config(page_title="AI Inventory Optimizer", layout="wide")
 st.title("🧠 AI-Powered Inventory Optimization Dashboard")
@@ -24,8 +25,38 @@ if run_button:
         st.stop()
 
     df = pd.read_csv(file)
-    optimizer = InventoryOptimizer().load_dataframe(df)
 
+    # Normalize column names
+    df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
+
+    # Replace common NA values
+    df.replace(to_replace=['#N/A', 'NA', 'N/A', '', ' '], value=np.nan, inplace=True)
+
+    # Preview data
+    st.subheader("🧾 Uploaded Data Preview")
+    st.dataframe(df.head())
+
+    # Ensure numeric conversion and fill with medians
+    for col in df.columns:
+        df[col] = pd.to_numeric(df[col], errors='ignore')
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    df[numeric_cols] = df[numeric_cols].apply(lambda col: col.fillna(col.median()))
+
+    # Check required columns
+    required_cols = [
+        'selling_price_per_unit', 'cogs_per_unit',
+        'current_stock', 'last_3month_sold', 'last_6month_sold',
+        'lead_time_days', 'moq'
+    ]
+    missing = [col for col in required_cols if col not in df.columns]
+    if missing:
+        st.error(f"❌ Missing required column(s): {', '.join(missing)}")
+        st.info("📥 Please download the sample CSV template below and match your headers.")
+        st.stop()
+
+    st.success("✅ All required columns are present.")
+
+    optimizer = InventoryOptimizer().load_dataframe(df)
     optimizer.calculate_monthly_avg_sales()
     optimizer.forecast_sales(forecast_periods)
     optimizer.calculate_stock_needed(revenue_target)
@@ -42,9 +73,9 @@ if run_button:
     st.subheader("📊 Dashboard Metrics")
     st.write(report['metrics'])
 
-    def plot_bar(data, x, y, title, color=None):
+    def plot_bar(data, x, y, title):
         fig, ax = plt.subplots(figsize=(12, 5))
-        sns.barplot(data=data, x=x, y=y, ax=ax, color=color)
+        sns.barplot(data=data, x=x, y=y, ax=ax)
         plt.xticks(rotation=45, ha='right')
         plt.title(title)
         st.pyplot(fig)
@@ -72,3 +103,18 @@ if run_button:
                                file_name="reorder_recommendations.csv")
     st.sidebar.download_button("Download Stock CSV", data=report['stock_recommendations'].to_csv(index=False),
                                file_name="stock_recommendations.csv")
+
+sample_csv = """sku,product_name,current_stock,last_3month_sold,last_6month_sold,selling_price_per_unit,cogs_per_unit,lead_time_days,moq
+SKU001,Product A,100,300,600,250,100,10,20
+SKU002,Product B,50,150,300,300,120,20,30
+SKU003,Product C,0,90,200,500,200,15,25
+"""
+
+st.sidebar.markdown("---")
+st.sidebar.markdown("📥 Need a template?")
+st.sidebar.download_button(
+    label="Download Sample CSV Template",
+    data=BytesIO(sample_csv.encode("utf-8")),
+    file_name="sample_inventory_template.csv",
+    mime="text/csv"
+)

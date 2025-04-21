@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 
 class InventoryOptimizer:
     def __init__(self):
@@ -17,14 +16,20 @@ class InventoryOptimizer:
         return self
 
     def forecast_sales(self, forecast_periods=3):
-        monthly_cols = [col for col in self.data.columns if col.startswith('sales_')]
         self.data['forecast_avg'] = self.data['monthly_avg_weighted']
         for i in range(1, forecast_periods + 1):
             self.data[f'forecast_{i}'] = self.data['forecast_avg']
         return self
 
     def calculate_stock_needed(self, revenue_target):
-        self.data['forecast_revenue'] = self.data['forecast_avg'] * self.data['selling_price_per_unit']
+        # Ensure columns are numeric and filled
+self.data['forecast_avg'] = pd.to_numeric(self.data['forecast_avg'], errors='coerce')
+self.data['selling_price_per_unit'] = pd.to_numeric(self.data['selling_price_per_unit'], errors='coerce')
+self.data['forecast_avg'].fillna(self.data['forecast_avg'].median(), inplace=True)
+self.data['selling_price_per_unit'].fillna(self.data['selling_price_per_unit'].median(), inplace=True)
+
+# Calculate forecast revenue
+self.data['forecast_revenue'] = self.data['forecast_avg'] * self.data['selling_price_per_unit']
         total_forecast_revenue = self.data['forecast_revenue'].sum()
         scaling_factor = revenue_target / total_forecast_revenue if total_forecast_revenue > 0 else 1
         scaled_sales = self.data['forecast_avg'] * scaling_factor
