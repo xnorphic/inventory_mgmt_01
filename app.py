@@ -24,6 +24,25 @@ if run_button:
         st.stop()
 
     df = pd.read_csv(file)
+
+    # Normalize column names
+    df.columns = df.columns.str.strip().str.lower().str.replace(" ", "_")
+
+    # Replace #N/A and other non-numeric with NaN
+    df.replace(to_replace=['#N/A', 'NA', 'N/A', '', ' '], value=np.nan, inplace=True)
+
+    # Convert necessary columns to numeric
+    for col in ['forecast_avg', 'cogs_per_unit', 'selling_price_per_unit', 'lead_time_days', 'moq',
+                'last_3month_sold', 'last_6month_sold', 'current_stock']:
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors='coerce')
+            df[col] = df[col].fillna(df[col].median())
+    required_cols = ['selling_price_per_unit', 'cogs_per_unit']
+    missing = [col for col in required_cols if col not in df.columns]
+    if missing:
+        st.error(f"Missing required column(s): {', '.join(missing)} in uploaded file.")
+        st.stop()
+
     optimizer = InventoryOptimizer().load_dataframe(df)
 
     optimizer.calculate_monthly_avg_sales()

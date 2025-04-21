@@ -1,6 +1,5 @@
 import pandas as pd
 import numpy as np
-from datetime import datetime, timedelta
 
 class InventoryOptimizer:
     def __init__(self):
@@ -17,7 +16,6 @@ class InventoryOptimizer:
         return self
 
     def forecast_sales(self, forecast_periods=3):
-        monthly_cols = [col for col in self.data.columns if col.startswith('sales_')]
         self.data['forecast_avg'] = self.data['monthly_avg_weighted']
         for i in range(1, forecast_periods + 1):
             self.data[f'forecast_{i}'] = self.data['forecast_avg']
