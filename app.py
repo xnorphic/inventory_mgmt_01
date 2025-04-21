@@ -24,6 +24,15 @@ if run_button:
         st.stop()
 
     df = pd.read_csv(file)
+    # Fill NA with median values for numeric columns
+    numeric_cols = df.select_dtypes(include=[np.number]).columns.tolist()
+    df[numeric_cols] = df[numeric_cols].apply(lambda col: col.fillna(col.median()))
+    required_cols = ['selling_price_per_unit', 'cogs_per_unit']
+    missing = [col for col in required_cols if col not in df.columns]
+    if missing:
+        st.error(f"Missing required column(s): {', '.join(missing)} in uploaded file.")
+        st.stop()
+
     optimizer = InventoryOptimizer().load_dataframe(df)
 
     optimizer.calculate_monthly_avg_sales()
